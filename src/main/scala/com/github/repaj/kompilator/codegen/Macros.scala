@@ -41,6 +41,103 @@ private[codegen] trait Macros extends MemoryManager {
   protected def builder: AsmBuilder
 
   /**
+    * Emits straight jzero jump.
+    *
+    * @param operand the operand to test
+    * @param label   the label as target of jump
+    */
+  protected final def jzero(operand: Operand, label: String): Unit = {
+    val operandReg = load(operand)
+    builder += AsmJzero(operandReg, label)
+  }
+
+  /**
+    * Emits instructions that computes reminder of division by 2.
+    *
+    * @param operand the operand to divide
+    * @return the result register
+    */
+  protected final def rem2(operand: Operand): Register = {
+    val operandReg = load(operand)
+    val resultReg = allocReg()
+    val end = getLabel("macro.rem2.end")
+
+    builder += AsmSub(resultReg, resultReg)
+    builder += AsmJodd(operandReg, end)
+    builder += AsmInc(resultReg)
+    builder.label(end)
+
+    resultReg
+  }
+
+  /**
+    * Emits instructions that computes reminder of division by 1.
+    *
+    * @param operand the operand to divide
+    * @return the result register
+    */
+  protected final def rem1(operand: Operand): Register = {
+    val operandReg = load(operand)
+    val resultReg = allocReg()
+    val end = getLabel("macro.rem1.end")
+
+    builder += AsmSub(resultReg, resultReg)
+    builder += AsmJzero(operandReg, end)
+    builder += AsmInc(resultReg)
+    builder.label(end)
+
+    resultReg
+  }
+
+  /**
+    * Emits a half for given operand.
+    *
+    * @param operand the operand to half
+    * @return the result register
+    */
+  protected final def half(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmHalf(operandReg)
+    operandReg
+  }
+
+  /**
+    * Emits add such that twices the value.
+    *
+    * @param operand the operand to twice
+    * @return the result register
+    */
+  protected final def twice(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmAdd(operandReg, operandReg)
+    operandReg
+  }
+
+  /**
+    * Emits basic decrement of operand.
+    *
+    * @param operand the operand to increment
+    * @return the result register
+    */
+  protected final def dec(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmDec(operandReg)
+    operandReg
+  }
+
+  /**
+    * Emits basic increment of operand.
+    *
+    * @param operand the operand to increment
+    * @return the result register
+    */
+  protected final def inc(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmInc(operandReg)
+    operandReg
+  }
+
+  /**
     * Emits `GET` and yields to the register.
     *
     * @return the result register
@@ -66,9 +163,9 @@ private[codegen] trait Macros extends MemoryManager {
     * @return the result register
     */
   protected final def add(left: Operand, right: Operand): Register = {
-//    val begin = getLabel("macro.add.begin")
+    //    val begin = getLabel("macro.add.begin")
     val reg = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(reg, load(left))
     builder += AsmAdd(reg, load(right))
     reg
@@ -82,9 +179,9 @@ private[codegen] trait Macros extends MemoryManager {
     * @return the result register
     */
   protected final def sub(left: Operand, right: Operand): Register = {
-//    val begin = getLabel("macro.sub.begin")
+    //    val begin = getLabel("macro.sub.begin")
     val reg = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(reg, load(left))
     builder += AsmSub(reg, load(right))
     reg
@@ -200,11 +297,11 @@ private[codegen] trait Macros extends MemoryManager {
     * @param label   the label name
     */
   protected final def jumpLe(leftOp: Operand, rightOp: Operand, label: String): Unit = {
-//    val begin = getLabel("macro.jge.begin")
+    //    val begin = getLabel("macro.jge.begin")
     val left = load(leftOp)
     val right = load(rightOp)
     val cmp = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(cmp, left)
     builder += AsmSub(cmp, right)
     builder.comment(s"-> $label")
@@ -219,11 +316,11 @@ private[codegen] trait Macros extends MemoryManager {
     * @param label   the label name
     */
   protected final def jumpGe(leftOp: Operand, rightOp: Operand, label: String): Unit = {
-//    val begin = getLabel("macro.jge.begin")
+    //    val begin = getLabel("macro.jge.begin")
     val left = load(leftOp)
     val right = load(rightOp)
     val cmp = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(cmp, right)
     builder += AsmSub(cmp, left)
     builder.comment(s"-> $label")
@@ -238,11 +335,11 @@ private[codegen] trait Macros extends MemoryManager {
     * @param label   the label name
     */
   protected final def jumpGt(leftOp: Operand, rightOp: Operand, label: String): Unit = {
-//    val begin = getLabel("macro.jge.begin")
+    //    val begin = getLabel("macro.jge.begin")
     val left = load(leftOp)
     val right = load(rightOp)
     val cmp = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(cmp, right)
     builder += AsmInc(cmp)
     builder += AsmSub(cmp, left)
@@ -258,11 +355,11 @@ private[codegen] trait Macros extends MemoryManager {
     * @param label   the label name
     */
   protected final def jumpLt(leftOp: Operand, rightOp: Operand, label: String): Unit = {
-//    val begin = getLabel("macro.jge.begin")
+    //    val begin = getLabel("macro.jge.begin")
     val left = load(leftOp)
     val right = load(rightOp)
     val cmp = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(cmp, left)
     builder += AsmInc(cmp)
     builder += AsmSub(cmp, right)
@@ -278,11 +375,11 @@ private[codegen] trait Macros extends MemoryManager {
     * @param label   the label name
     */
   protected final def jumpNe(leftOp: Operand, rightOp: Operand, label: String): Unit = {
-//    val begin = getLabel("macro.jge.begin")
+    //    val begin = getLabel("macro.jge.begin")
     val left = load(leftOp)
     val right = load(rightOp)
     val cmp = allocReg()
-//    builder.label(begin)
+    //    builder.label(begin)
     builder += AsmCopy(cmp, right)
     builder += AsmInc(cmp)
     builder += AsmSub(cmp, left)

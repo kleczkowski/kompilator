@@ -35,7 +35,7 @@ import scala.collection.mutable
   * @author Konrad Kleczkowski
   */
 class AsmBuilder(list: mutable.Buffer[AsmInstruction] = mutable.Buffer.empty,
-                 labelTable: mutable.Map[String, Int] = mutable.Map.empty,
+                 labelTable: mutable.Buffer[(String, Int)] = mutable.Buffer.empty,
                  commentTable: mutable.Map[Int, String] = mutable.Map.empty) {
   /**
     * Puts the logical label after the last inserted instruction.
@@ -64,10 +64,10 @@ class AsmBuilder(list: mutable.Buffer[AsmInstruction] = mutable.Buffer.empty,
     * @param out the output stream
     */
   def render(out: PrintWriter): Unit = {
-    val invLabelTable = labelTable.map(_.swap)
+    val invLabelTable = labelTable.map(_.swap).groupBy(_._1).map({ case (k, v) => (k, v.map(_._2)) })
     for (i <- list.indices) {
       if (invLabelTable contains i) out.print(s"# ${invLabelTable(i)}:\n")
-      out.print(list(i).render(labelTable.toMap))
+      out.print(list(i).render(invLabelTable))
       if (commentTable contains i) out.print(s"   # ${commentTable(i)}\n") else out.print('\n')
     }
   }

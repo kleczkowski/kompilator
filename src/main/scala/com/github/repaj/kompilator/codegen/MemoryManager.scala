@@ -257,7 +257,8 @@ private[codegen] trait MemoryManager {
 
   private def const(destination: Register, value: BigInt): Unit = {
     builder += AsmSub(destination, destination)
-    val cost = 5 * value.bitLength + value.bitCount
+    def countBits(value: BigInt): Int = value.toString(2).count(_ == '1')
+    val cost = 5 * value.bitLength + countBits(value)
     if (value > cost) {
       for (bit <- value.toString(2)) {
         builder += AsmAdd(destination, destination)

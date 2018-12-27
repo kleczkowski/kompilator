@@ -24,6 +24,8 @@
 
 package com.github.repaj.kompilator.vm
 
+import scala.collection.mutable
+
 /**
   * Base class for low-level VM instructions.
   *
@@ -38,7 +40,7 @@ sealed abstract class AsmInstruction {
     *                   to the raw addresses, mainly maintained by [[AsmBuilder]]
     * @return rendered instruction as VM instruction string
     */
-  final def render(labelTable: Map[String, Int]): String = this match {
+  final def render(labelTable: Map[Int, mutable.Buffer[String]]): String = this match {
     case AsmGet(dst) => s"GET $dst"
     case AsmPut(src) => s"PUT $src"
     case AsmLoad(dst) => s"LOAD $dst"
@@ -49,9 +51,9 @@ sealed abstract class AsmInstruction {
     case AsmHalf(dst) => s"HALF $dst"
     case AsmInc(dst) => s"INC $dst"
     case AsmDec(dst) => s"DEC $dst"
-    case AsmJump(label) => s"JUMP ${labelTable(label)}"
-    case AsmJzero(cmp, label) => s"JZERO $cmp ${labelTable(label)}"
-    case AsmJodd(cmp, label) => s"JODD $cmp ${labelTable(label)}"
+    case AsmJump(label) => s"JUMP ${labelTable.filter(_._2 contains label).keys.head}"
+    case AsmJzero(cmp, label) => s"JZERO $cmp ${labelTable.filter(_._2 contains label).keys.head}"
+    case AsmJodd(cmp, label) => s"JODD $cmp ${labelTable.filter(_._2 contains label).keys.head}"
     case AsmHalt => "HALT"
   }
 }
