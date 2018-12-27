@@ -35,6 +35,8 @@ import scala.io.AnsiColor
   * @author Konrad Kleczkowski
   */
 object StdOut {
+  private var failed = false
+
   /**
     * Prints a fatal error to the standard output
     * and exits the program.
@@ -53,7 +55,7 @@ object StdOut {
     * program exit.
     *
     * @param location the location in the source code
-    * @param message the message text
+    * @param message  the message text
     */
   def error(location: Location, message: String): Unit = {
     println(s"${AnsiColor.RESET}$location: ${AnsiColor.RED}error: ${AnsiColor.WHITE}$message")
@@ -64,7 +66,7 @@ object StdOut {
     * Prints a warning to the standard output with given location.
     *
     * @param location the location in the source code
-    * @param message the message text
+    * @param message  the message text
     */
   def warning(location: Location, message: String): Unit = {
     println(s"${AnsiColor.RESET}$location: ${AnsiColor.YELLOW}warning: ${AnsiColor.WHITE}$message")
@@ -78,6 +80,4 @@ object StdOut {
   def validate(): Unit = {
     if (failed) sys.exit(1)
   }
-
-  private var failed = false
 }

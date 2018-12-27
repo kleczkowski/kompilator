@@ -1,0 +1,8 @@
+DECLARE
+    a(10:20); b; c;
+IN
+    READ c;
+    READ b;
+    a(c) := 2 * b;
+    WRITE a(c);
+END
