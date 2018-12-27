@@ -24,7 +24,7 @@
 
 package com.github.repaj.kompilator
 
-import scala.io.AnsiColor
+import scala.io.{AnsiColor, Source}
 
 /**
   * Singleton object that allows to report errors
@@ -58,7 +58,10 @@ object StdOut {
     * @param message  the message text
     */
   def error(location: Location, message: String): Unit = {
-    println(s"${AnsiColor.RESET}$location: ${AnsiColor.RED}error: ${AnsiColor.WHITE}$message")
+    println(s"${AnsiColor.RESET}$location: ${AnsiColor.RED}error: ${AnsiColor.WHITE}$message${AnsiColor.RESET}")
+    val line = Source.fromFile(location.sourceFile).getLines().drop(location.line - 1).next
+    println(line)
+    println(" ".repeat(location.column - 1) + s"${AnsiColor.GREEN}^${AnsiColor.RESET}")
     failed = true
   }
 
