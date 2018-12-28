@@ -136,6 +136,26 @@ final class CodeGenerator(protected val builder: AsmBuilder) extends MemoryManag
 
   private def emitBranch(instruction: BranchInstruction): Unit = {
     def simplifyCond: PartialFunction[BranchInstruction, Unit] = {
+      case JumpIf(Eq(Constant(left), Constant(right)), ifTrue, _) if left == right =>
+        builder += AsmJump(ifTrue.name)
+      case JumpIf(Eq(Constant(left), Constant(right)), _, ifFalse) if left != right =>
+        builder += AsmJump(ifFalse.name)
+      case JumpIf(Le(Constant(left), Constant(right)), ifTrue, _) if left <= right =>
+        builder += AsmJump(ifTrue.name)
+      case JumpIf(Le(Constant(left), Constant(right)), _, ifFalse) if left > right =>
+        builder += AsmJump(ifFalse.name)
+      case JumpIf(Ge(Constant(left), Constant(right)), ifTrue, _) if left >= right =>
+        builder += AsmJump(ifTrue.name)
+      case JumpIf(Ge(Constant(left), Constant(right)), _, ifFalse) if left < right =>
+        builder += AsmJump(ifFalse.name)
+      case JumpIf(Lt(Constant(left), Constant(right)), ifTrue, _) if left < right =>
+        builder += AsmJump(ifTrue.name)
+      case JumpIf(Lt(Constant(left), Constant(right)), _, ifFalse) if left >= right =>
+        builder += AsmJump(ifFalse.name)
+      case JumpIf(Gt(Constant(left), Constant(right)), ifTrue, _) if left > right =>
+        builder += AsmJump(ifTrue.name)
+      case JumpIf(Gt(Constant(left), Constant(right)), _, ifFalse) if left <= right =>
+        builder += AsmJump(ifFalse.name)
       case JumpIf(Eq(left, Constant(zero)), ifTrue, ifFalse) if zero == 0 =>
         jzero(left, ifTrue.name); builder += AsmJump(ifFalse.name)
       case JumpIf(Eq(Constant(zero), right), ifTrue, ifFalse) if zero == 0 =>
