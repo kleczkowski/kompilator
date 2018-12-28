@@ -229,7 +229,7 @@ private[codegen] trait MemoryManager {
     val allRegisters = Set(Register.values: _*) - Register.A
     for (reg <- allRegisters) {
       val variablesToSpill = locationDesc.filter(_._2 == Set(RegisterLocation(reg))).keys
-      for (variable <- variablesToSpill) storeToMem(reg, getAddress(variable), variable)
+      for (variable <- variablesToSpill if variable.isInstanceOf[DescVar]) storeToMem(reg, getAddress(variable), variable)
     }
   }
 
