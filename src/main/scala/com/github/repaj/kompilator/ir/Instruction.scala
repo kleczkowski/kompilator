@@ -26,6 +26,8 @@ package com.github.repaj.kompilator.ir
 
 import com.github.repaj.kompilator.SymbolTable
 
+import scala.util.hashing.MurmurHash3
+
 
 /**
   * Base class of IR instructions.
@@ -71,29 +73,36 @@ sealed abstract class Instruction extends Product {
     */
   final def isLoadStore: Boolean = this.isInstanceOf[LoadStoreInstruction]
 
-//  final def operands: Seq[Operand] = this
-//    .productIterator
-//    .filter(_.isInstanceOf[Operand])
-//    .map(_.asInstanceOf[Operand])
-//    .toSeq
-//
-//  final def defines: Option[Operand] = this match {
-//    case Move(_, destination) => Some(destination)
-//    case Get(destination) => Some(destination)
-//    case Put(_) => None
-//    case IndexedLoad(_, _, destination) => Some(destination)
-//    case IndexedStore(_, _, _) => None
-//    case Add(_, _, result) => Some(result)
-//    case Sub(_, _, result) => Some(result)
-//    case Mul(_, _, result) => Some(result)
-//    case Div(_, _, result) => Some(result)
-//    case Rem(_, _, result) => Some(result)
-//    case Jump(_) => None
-//    case JumpIf(_, _, _) => None
-//    case Halt => None
-//  }
-//
-//  final def uses: Seq[Operand] = operands diff defines.toSeq
+  /**
+    * Returns all operands of this instruction.
+    * @return the sequence of operands that
+    *         preserves ordering in instruction's constructor
+    */
+  final def operands: Seq[Operand] = this
+    .productIterator
+    .filter(_.isInstanceOf[Operand])
+    .map(_.asInstanceOf[Operand])
+    .toSeq
+
+  /**
+    * Returns the operand that is defined by this instruction.
+    * @return the defined operand
+    */
+  final def defines: Option[Operand] = this match {
+    case Move(_, destination) => Some(destination)
+    case Get(destination) => Some(destination)
+    case Put(_) => None
+    case IndexedLoad(_, _, destination) => Some(destination)
+    case IndexedStore(_, _, _) => None
+    case Add(_, _, result) => Some(result)
+    case Sub(_, _, result) => Some(result)
+    case Mul(_, _, result) => Some(result)
+    case Div(_, _, result) => Some(result)
+    case Rem(_, _, result) => Some(result)
+    case Jump(_) => None
+    case JumpIf(_, _, _) => None
+    case Halt => None
+  }
 }
 
 /**
@@ -190,12 +199,16 @@ case class Rem(left: Operand, right: Operand, result: Operand) extends BinaryIns
 /**
   * Jumps to the `block` immediately.
   */
-case class Jump(block: BasicBlock) extends BranchInstruction
+case class Jump(block: BasicBlock) extends BranchInstruction {
+  override def hashCode(): Int = MurmurHash3.stringHash(block.name)
+}
 
 /**
   * Jumps to the `ifTrue` is `condition` is met, otherwise to `ifFalse`.
   */
-case class JumpIf(condition: RelationOperator, ifTrue: BasicBlock, ifFalse: BasicBlock) extends BranchInstruction
+case class JumpIf(condition: RelationOperator, ifTrue: BasicBlock, ifFalse: BasicBlock) extends BranchInstruction {
+  override def hashCode(): Int = MurmurHash3.orderedHash((condition, ifTrue.name, ifFalse.name).productIterator)
+}
 
 /**
   * Stops the execution of code.

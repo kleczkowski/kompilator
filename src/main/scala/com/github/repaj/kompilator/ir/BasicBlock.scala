@@ -25,6 +25,7 @@
 package com.github.repaj.kompilator.ir
 
 import scala.collection.mutable
+import scala.util.hashing.MurmurHash3
 
 /**
   * An implementation of basic block.

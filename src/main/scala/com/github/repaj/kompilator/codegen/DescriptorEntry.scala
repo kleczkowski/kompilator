@@ -30,37 +30,37 @@ import com.github.repaj.kompilator.vm.Register
 /**
   * Base class for descriptors entry.
   */
-private[codegen] sealed abstract class DescriptorEntry
+sealed abstract class DescriptorEntry
 
 /**
   * Descriptor entry that contains variable.
   *
   * @param entry the symbol table entry
   */
-private[codegen] final case class DescVar(entry: VariableEntry) extends DescriptorEntry
+final case class DescVar(entry: VariableEntry) extends DescriptorEntry
 
 /**
   * Descriptor entry that contains temporary variable.
   *
   * @param id the id of temporary
   */
-private[codegen] final case class DescTemp(id: Int) extends DescriptorEntry
+final case class DescTemp(id: Int) extends DescriptorEntry
 
 /**
   * Base class for location of descriptor entries.
   */
-private[codegen] sealed abstract class EntryLocation
+sealed abstract class EntryLocation
 
 /**
   * Indicates that given variable is at memory.
   *
   * @param address the address
   */
-private[codegen] final case class MemoryLocation(address: BigInt) extends EntryLocation
+final case class MemoryLocation(address: BigInt) extends EntryLocation
 
 /**
   * Indicates that given variable is in register.
   *
   * @param register the register
   */
-private[codegen] final case class RegisterLocation(register: Register) extends EntryLocation
+final case class RegisterLocation(register: Register) extends EntryLocation

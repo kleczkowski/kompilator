@@ -25,6 +25,7 @@
 package com.github.repaj.kompilator.codegen
 
 import com.github.repaj.kompilator.SymbolTable.{ArrayEntry, VariableEntry}
+import com.github.repaj.kompilator.analysis.NextUseInfoAnalysis
 import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm._
 
@@ -45,8 +46,12 @@ final class CodeGenerator(protected val builder: AsmBuilder) extends MemoryManag
   def emit(basicBlocks: BasicBlock*): Unit = basicBlocks.foreach(emitBlock)
 
   private def emitBlock(basicBlock: BasicBlock): Unit = {
+    val nextInfoPerInst = NextUseInfoAnalysis(basicBlock)
     builder.label(basicBlock.name)
-    for (instruction <- basicBlock.list) emitInstruction(instruction)
+    for (instruction <- basicBlock.list) {
+      updateNextUseInfo(nextInfoPerInst(instruction))
+      emitInstruction(instruction)
+    }
   }
 
   private def emitInstruction(instruction: Instruction): Unit = {

@@ -26,6 +26,8 @@ package com.github.repaj.kompilator.codegen
 
 import com.github.repaj.kompilator.StdOut
 import com.github.repaj.kompilator.SymbolTable.{ArrayEntry, VariableEntry}
+import com.github.repaj.kompilator.analysis.NextUseInfoAnalysis
+import com.github.repaj.kompilator.analysis.NextUseInfoAnalysis.{Dead, LiveStatus}
 import com.github.repaj.kompilator.ir.{Constant, Name, Operand, Temp}
 import com.github.repaj.kompilator.vm._
 
@@ -179,6 +181,11 @@ private[codegen] trait MemoryManager {
     def selectFree: Option[Register] =
       available.find(r => !locationDesc.values.exists(_ contains RegisterLocation(r)))
 
+    // Try to select dead variable at given point.
+    def selectDead: Option[Register] =
+      available.find(r => locationDesc.exists(p => (p._2 contains RegisterLocation(r))
+        && nextUseInfo(p._1) == Dead))
+
     // Spills register to the memory.
     def spill: Register = {
       def penalty(register: Register): Int = locationDesc.values.count(_ == Set(RegisterLocation(register)))
@@ -193,10 +200,16 @@ private[codegen] trait MemoryManager {
     }
 
     // Run algorithm.
-    val reg = selectFree.getOrElse(spill)
+    val reg = selectFree.orElse(selectDead).getOrElse(spill)
     selected += reg
     reg
   }
+
+  protected def updateNextUseInfo(info: Map[DescriptorEntry, LiveStatus]): Unit = {
+    nextUseInfo = info
+  }
+
+  private var nextUseInfo: Map[DescriptorEntry, LiveStatus] = _
 
   private def storeToMem(value: Register, address: BigInt, entry: DescriptorEntry): Unit = {
     const(Register.A, address)

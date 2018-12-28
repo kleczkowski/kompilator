@@ -25,6 +25,8 @@
 package com.github.repaj.kompilator.ir
 
 import com.github.repaj.kompilator.SymbolTable
+import com.github.repaj.kompilator.SymbolTable.VariableEntry
+import com.github.repaj.kompilator.codegen.{DescTemp, DescVar, DescriptorEntry}
 
 /**
   * Base class for operands of intermediate instructions.
@@ -39,6 +41,18 @@ sealed abstract class Operand {
     case Constant(value) => value.toString()
     case Name(entry) => entry.name
     case Temp(id) => s"_t$id"
+  }
+
+  /**
+    * Converts this operand to the descriptor entry.
+    *
+    * @return the descriptor entry
+    * @throws IllegalArgumentException if this operand is not a l-value.
+    */
+  final def toDescriptor: Option[DescriptorEntry] = this match {
+    case Name(entry: VariableEntry) => Some(DescVar(entry))
+    case Temp(id) => Some(DescTemp(id))
+    case _ => None
   }
 }
 
