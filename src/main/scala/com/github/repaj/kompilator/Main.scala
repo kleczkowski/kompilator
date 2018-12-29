@@ -26,7 +26,6 @@ package com.github.repaj.kompilator
 
 import java.io.{File, PrintWriter}
 
-import com.github.repaj.kompilator.codegen.CodeGenerator
 import com.github.repaj.kompilator.ir.IRBuilder
 import com.github.repaj.kompilator.parser.ErrorListenerImpl
 import com.github.repaj.kompilator.parser.antlr4.{ImperatorLexer, ImperatorParser}
@@ -55,13 +54,4 @@ object Main extends App {
   val block = parser.compilationUnit().node
   StdOut.validate()
   val (_, blocks) = new AstToTacVisitor(new IRBuilder, parser.getSymbolTable).generate(block)
-  if (debug) blocks.foreach(print(_))
-  val builder = new AsmBuilder
-  val generator = new CodeGenerator(builder)
-  generator.emit(blocks: _*)
-  StdOut.validate()
-  val writer = new PrintWriter(new File(outputFile))
-  builder.render(writer)
-  writer.flush()
-  writer.close()
 }

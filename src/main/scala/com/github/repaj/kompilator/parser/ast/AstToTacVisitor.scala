@@ -56,15 +56,15 @@ class AstToTacVisitor(builder: IRBuilder, table: SymbolTable) {
 
   private def codegenAssign(assign: Assign): Unit = assign match {
     case Assign(ArrayRef(entry, idx), Constant(value)) =>
-      builder += ir.IndexedStore(ir.Constant(value), entry, codegenValue(idx))
+      builder += ir.IndexedStore(ir.Constant(value), Name(entry), codegenValue(idx))
     case Assign(ArrayRef(aEntry, idx), VariableRef(vEntry)) =>
-      builder += ir.IndexedStore(ir.Name(vEntry), aEntry, codegenValue(idx))
+      builder += ir.IndexedStore(ir.Name(vEntry), Name(aEntry), codegenValue(idx))
     case Assign(VariableRef(entry), src) =>
       codegenExpr(src, ir.Name(entry))
     case Assign(ArrayRef(entry, idx), src) =>
       val temp = builder.newTemp
       codegenExpr(src, temp)
-      builder += ir.IndexedStore(temp, entry, codegenValue(idx))
+      builder += ir.IndexedStore(temp, Name(entry), codegenValue(idx))
   }
 
   private def codegenIf(`if`: If): Unit = {
@@ -168,7 +168,7 @@ class AstToTacVisitor(builder: IRBuilder, table: SymbolTable) {
     case Read(ArrayRef(entry, idx)) =>
       val temp = builder.newTemp
       builder += ir.Get(temp)
-      builder += ir.IndexedStore(temp, entry, codegenValue(idx))
+      builder += ir.IndexedStore(temp, Name(entry), codegenValue(idx))
   }
 
   private def codegenWrite(write: Write): Unit = {
@@ -210,7 +210,7 @@ class AstToTacVisitor(builder: IRBuilder, table: SymbolTable) {
       ir.Name(entry)
     case ArrayRef(entry, idx) =>
       val temp = builder.newTemp
-      builder += ir.IndexedLoad(entry, codegenValue(idx), temp)
+      builder += ir.IndexedLoad(Name(entry), codegenValue(idx), temp)
       temp
     case Constant(v) =>
       ir.Constant(v)

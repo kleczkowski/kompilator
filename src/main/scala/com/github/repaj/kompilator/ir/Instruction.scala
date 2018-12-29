@@ -46,8 +46,8 @@ sealed abstract class Instruction extends Product {
     case Move(source, destination) => s"$destination := $source"
     case Get(destination) => s"get $destination"
     case Put(source) => s"put $source"
-    case IndexedLoad(base, offset, destination) => s"$destination := ${base.name}[$offset]"
-    case IndexedStore(source, base, offset) => s"${base.name}[$offset] := $source"
+    case IndexedLoad(base, offset, destination) => s"$destination := $base[$offset]"
+    case IndexedStore(source, base, offset) => s"$base[$offset] := $source"
     case Add(left, right, result) => s"$result := $left + $right"
     case Sub(left, right, result) => s"$result := $left - $right"
     case Mul(left, right, result) => s"$result := $left * $right"
@@ -164,12 +164,12 @@ case class Move(source: Operand, destination: Operand) extends LoadStoreInstruct
 /**
   * Assigns `base[offset]` to `destination`.
   */
-case class IndexedLoad(base: SymbolTable.Entry, offset: Operand, destination: Operand) extends LoadStoreInstruction
+case class IndexedLoad(base: Operand, offset: Operand, destination: Operand) extends LoadStoreInstruction
 
 /**
   * Assigns `source` to `base[offset]`.
   */
-case class IndexedStore(source: Operand, base: SymbolTable.Entry, offset: Operand) extends LoadStoreInstruction
+case class IndexedStore(source: Operand, base: Operand, offset: Operand) extends LoadStoreInstruction
 
 /**
   * Adds `left` to `right` and stores it in `result`.
