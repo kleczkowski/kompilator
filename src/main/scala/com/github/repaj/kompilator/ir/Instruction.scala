@@ -25,6 +25,7 @@
 package com.github.repaj.kompilator.ir
 
 import com.github.repaj.kompilator.SymbolTable
+import com.github.repaj.kompilator.SymbolTable.ArrayEntry
 
 import scala.util.hashing.MurmurHash3
 
@@ -102,6 +103,27 @@ sealed abstract class Instruction extends Product {
     case Jump(_) => None
     case JumpIf(_, _, _) => None
     case Halt => None
+  }
+
+  final def uses: Seq[Operand] = this match {
+    case Move(source, _) => Seq(source)
+    case Get(_) => Seq.empty
+    case Put(_) => Seq.empty
+    case IndexedLoad(_, offset, _) => Seq(offset)
+    case IndexedStore(source, _, offset) => Seq(source, offset)
+    case Add(left, right, _) => Seq(left, right)
+    case Sub(left, right, _) => Seq(left, right)
+    case Mul(left, right, _) => Seq(left, right)
+    case Div(left, right, _) => Seq(left, right)
+    case Rem(left, right, _) => Seq(left, right)
+    case Jump(_) => Seq.empty
+    case JumpIf(Eq(left, right), _, _) => Seq(left, right)
+    case JumpIf(Ne(left, right), _, _) => Seq(left, right)
+    case JumpIf(Le(left, right), _, _) => Seq(left, right)
+    case JumpIf(Ge(left, right), _, _) => Seq(left, right)
+    case JumpIf(Lt(left, right), _, _) => Seq(left, right)
+    case JumpIf(Gt(left, right), _, _) => Seq(left, right)
+    case Halt => Seq.empty
   }
 }
 

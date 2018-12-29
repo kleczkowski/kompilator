@@ -42,10 +42,12 @@ import scala.util.hashing.MurmurHash3
   * @author Konrad Kleczkowski
   */
 case class BasicBlock(name: String, list: mutable.Buffer[Instruction] = mutable.Buffer.empty) {
+  override final def toString: String = name
+
   /**
     * Returns the string representation of this basic block.
     */
-  override final def toString: String =
+  final def render: String =
     (s"$name:\n" /: list) { (str, inst) => str + s"\t$inst\n" }
 
   /**
@@ -54,5 +56,13 @@ case class BasicBlock(name: String, list: mutable.Buffer[Instruction] = mutable.
   def append(instruction: Instruction): this.type = {
     list += instruction
     this
+  }
+
+  def successors: Seq[BasicBlock] = {
+    list.last match {
+      case Jump(block) => Seq(block)
+      case JumpIf(_, ifTrue, ifFalse) => Seq(ifTrue, ifFalse)
+      case _ => Seq.empty
+    }
   }
 }

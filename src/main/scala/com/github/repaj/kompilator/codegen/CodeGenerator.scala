@@ -26,6 +26,7 @@ package com.github.repaj.kompilator.codegen
 
 import com.github.repaj.kompilator.SymbolTable.{ArrayEntry, VariableEntry}
 import com.github.repaj.kompilator.analysis.NextUseInfoAnalysis
+import com.github.repaj.kompilator.analysis.dataflow.{DominatorAnalysis, LivenessAnalysis}
 import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm._
 
@@ -43,7 +44,16 @@ final class CodeGenerator(protected val builder: AsmBuilder) extends MemoryManag
     *
     * @param basicBlocks the basic block sequence
     */
-  def emit(basicBlocks: BasicBlock*): Unit = basicBlocks.foreach(emitBlock)
+  def emit(basicBlocks: BasicBlock*): Unit = {
+    val dominators = DominatorAnalysis(basicBlocks: _*)
+    val liveness = LivenessAnalysis(basicBlocks: _*)
+    basicBlocks.foreach { bb =>
+      currentBlock = bb
+      dom = dominators
+      live = liveness(bb)
+      emitBlock(bb)
+    }
+  }
 
   private def emitBlock(basicBlock: BasicBlock): Unit = {
     val nextInfoPerInst = NextUseInfoAnalysis(basicBlock)

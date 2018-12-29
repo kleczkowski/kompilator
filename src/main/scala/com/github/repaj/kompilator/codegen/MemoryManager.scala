@@ -28,7 +28,8 @@ import com.github.repaj.kompilator.StdOut
 import com.github.repaj.kompilator.SymbolTable.{ArrayEntry, VariableEntry}
 import com.github.repaj.kompilator.analysis.NextUseInfoAnalysis
 import com.github.repaj.kompilator.analysis.NextUseInfoAnalysis.{Dead, LiveStatus}
-import com.github.repaj.kompilator.ir.{Constant, Name, Operand, Temp}
+import com.github.repaj.kompilator.analysis.dataflow.DataFlowAnalysisResult
+import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm._
 
 import scala.collection.mutable
@@ -193,7 +194,9 @@ private[codegen] trait MemoryManager {
       val victim = available.minBy(penalty)
 
       // Spill all variables associated to this register only.
-      val variablesToSpill = locationDesc.filter(_._2 == Set(RegisterLocation(victim))).keys
+      val variablesToSpill = locationDesc
+        .filter(_._2 == Set(RegisterLocation(victim)))
+        .keys
       for (variable <- variablesToSpill) storeToMem(victim, getAddress(variable), variable)
 
       victim
@@ -241,8 +244,13 @@ private[codegen] trait MemoryManager {
   protected final def spillAll(): Unit = {
     val allRegisters = Set(Register.values: _*) - Register.A
     for (reg <- allRegisters) {
-      val variablesToSpill = locationDesc.filter(_._2 == Set(RegisterLocation(reg))).keys
-      for (variable <- variablesToSpill if variable.isInstanceOf[DescVar]) storeToMem(reg, getAddress(variable), variable)
+      val variablesToSpill = locationDesc
+        .filter(_._2 == Set(RegisterLocation(reg)))
+        .keys
+        .filter(live.out contains _)
+        .filter(cannotStayInReg)
+        .filter(_.isInstanceOf[DescVar])
+      for (variable <- variablesToSpill) storeToMem(reg, getAddress(variable), variable)
     }
   }
 
@@ -252,8 +260,12 @@ private[codegen] trait MemoryManager {
   protected final def clearRegistersState(): Unit = {
     val allRegisters = Set(Register.values: _*) - Register.A
     for (reg <- allRegisters) {
-      for (entry <- locationDesc.keys) locationDesc(entry) -= RegisterLocation(reg)
+      for (entry <- locationDesc.keys if cannotStayInReg(entry)) locationDesc(entry) -= RegisterLocation(reg)
     }
+  }
+
+  private def cannotStayInReg(variable: DescriptorEntry): Boolean = {
+    currentBlock.successors.exists(b => !(dom(b) contains currentBlock))
   }
 
   private def allocMem(size: BigInt): BigInt = {
@@ -261,6 +273,11 @@ private[codegen] trait MemoryManager {
     addressOffset += size
     address
   }
+
+  protected var currentBlock: BasicBlock = _
+  protected var dom: Map[BasicBlock, Set[BasicBlock]] = _
+  protected var live: DataFlowAnalysisResult[DescriptorEntry] = _
+
 
   private def getAddress(entry: DescriptorEntry): BigInt =
     addressTable.getOrElseUpdate(entry, allocMem(1))

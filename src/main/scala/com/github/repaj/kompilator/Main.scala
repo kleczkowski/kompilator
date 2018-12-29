@@ -26,6 +26,8 @@ package com.github.repaj.kompilator
 
 import java.io.{File, PrintWriter}
 
+import com.github.repaj.kompilator.analysis.dag.DaggifyBlock
+import com.github.repaj.kompilator.analysis.dataflow.LivenessAnalysis
 import com.github.repaj.kompilator.codegen.CodeGenerator
 import com.github.repaj.kompilator.ir.IRBuilder
 import com.github.repaj.kompilator.parser.ErrorListenerImpl
@@ -55,7 +57,14 @@ object Main extends App {
   val block = parser.compilationUnit().node
   StdOut.validate()
   val (_, blocks) = new AstToTacVisitor(new IRBuilder, parser.getSymbolTable).generate(block)
-  if (debug) blocks.foreach(print(_))
+  if (debug) {
+    println("--- IR REPRESENTATION ---")
+    blocks.foreach(b => println(b.render))
+    println("--- DAGGIFY ---")
+    blocks.foreach(b => println(DaggifyBlock(b)))
+    println("--- LIVENESS ANALYSIS ---")
+    println(LivenessAnalysis(blocks: _*))
+  }
   val builder = new AsmBuilder
   val generator = new CodeGenerator(builder)
   generator.emit(blocks: _*)
