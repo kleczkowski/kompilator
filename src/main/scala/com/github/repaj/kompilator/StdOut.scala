@@ -58,7 +58,8 @@ object StdOut {
     * @param message  the message text
     */
   def error(location: Location, message: String): Unit = {
-    println(s"${AnsiColor.RESET}$location: ${AnsiColor.RED}error: ${AnsiColor.WHITE}$message${AnsiColor.RESET}")
+    println(s"${AnsiColor.RESET}${if (location != null) location else ""}: " +
+      s"${AnsiColor.RED}error: ${AnsiColor.WHITE}$message${AnsiColor.RESET}")
     val line = Source.fromFile(location.sourceFile).getLines().drop(location.line - 1).next
     println(line)
     println(" ".repeat(location.column - 1) + s"${AnsiColor.GREEN}^${AnsiColor.RESET}")
@@ -72,7 +73,8 @@ object StdOut {
     * @param message  the message text
     */
   def warning(location: Location, message: String): Unit = {
-    println(s"${AnsiColor.RESET}$location: ${AnsiColor.YELLOW}warning: ${AnsiColor.WHITE}$message")
+    println(s"${AnsiColor.RESET}${if (location != null) location else ""}: " +
+      s"${AnsiColor.YELLOW}warning: ${AnsiColor.WHITE}$message")
   }
 
   /**

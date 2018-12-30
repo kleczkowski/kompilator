@@ -26,7 +26,8 @@ package com.github.repaj.kompilator
 
 import java.io.{File, PrintWriter}
 
-import com.github.repaj.kompilator.ir.IRBuilder
+import com.github.repaj.kompilator.codegen.CodeGenerator
+import com.github.repaj.kompilator.ir.{BasicBlock, IRBuilder}
 import com.github.repaj.kompilator.parser.ErrorListenerImpl
 import com.github.repaj.kompilator.parser.antlr4.{ImperatorLexer, ImperatorParser}
 import com.github.repaj.kompilator.parser.ast.{AstToTacVisitor, Block}
@@ -39,19 +40,38 @@ import org.antlr.v4.runtime.{CharStreams, CommonTokenStream}
   * @author Konrad Kleczkowski
   */
 object Main extends App {
-  val sourceFile = args(0)
-  val outputFile = args(1)
   val debug = args.length > 2 && args(2) == "--debug"
 
-  val errorListener = new ErrorListenerImpl(sourceFile)
-  val lexer = new ImperatorLexer(CharStreams.fromFileName(sourceFile))
-  lexer.removeErrorListeners()
-  lexer.addErrorListener(errorListener)
-  val tokenStream = new CommonTokenStream(lexer)
-  val parser = new ImperatorParser(tokenStream)
-  parser.removeErrorListeners()
-  parser.addErrorListener(errorListener)
-  val block = parser.compilationUnit().node
-  StdOut.validate()
-  val (_, blocks) = new AstToTacVisitor(new IRBuilder, parser.getSymbolTable).generate(block)
+  val blocks = parseTac(args(0))
+  val asmBuilder = generateAsm(blocks: _*)
+  renderAsm(asmBuilder, args(1))
+
+  def parseTac(sourceFile: String): Seq[BasicBlock] = {
+    val errorListener = new ErrorListenerImpl(sourceFile)
+    val lexer = new ImperatorLexer(CharStreams.fromFileName(sourceFile))
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(errorListener)
+    val tokenStream = new CommonTokenStream(lexer)
+    val parser = new ImperatorParser(tokenStream)
+    parser.removeErrorListeners()
+    parser.addErrorListener(errorListener)
+    val block = parser.compilationUnit().node
+    StdOut.validate()
+    val (_, blocks) = new AstToTacVisitor(new IRBuilder, parser.getSymbolTable).generate(block)
+    blocks
+  }
+
+  def generateAsm(blocks: BasicBlock*): AsmBuilder = {
+    val builder = new AsmBuilder
+    val generator = new CodeGenerator(builder)
+    blocks.foreach(generator.emitBlock)
+    StdOut.validate()
+    builder
+  }
+
+  def renderAsm(builder: AsmBuilder, outputFile: String): Unit = {
+    val stream = new PrintWriter(outputFile)
+    builder.render(stream)
+    stream.close()
+  }
 }
