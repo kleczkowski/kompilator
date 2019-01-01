@@ -64,7 +64,7 @@ object Main extends App {
   def generateAsm(blocks: BasicBlock*): AsmBuilder = {
     val builder = new AsmBuilder
     val generator = new CodeGenerator(builder)
-    blocks.foreach(generator.emitBlock)
+    generator.emit(blocks: _*)
     StdOut.validate()
     builder
   }

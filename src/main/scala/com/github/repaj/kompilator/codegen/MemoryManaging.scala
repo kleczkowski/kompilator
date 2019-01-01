@@ -26,7 +26,8 @@ package com.github.repaj.kompilator.codegen
 
 import com.github.repaj.kompilator.StdOut
 import com.github.repaj.kompilator.SymbolTable.ArrayEntry
-import com.github.repaj.kompilator.ir.{Constant, Name, Operand}
+import com.github.repaj.kompilator.codegen.analysis.DataFlowAnalysisResult
+import com.github.repaj.kompilator.ir.{BasicBlock, Constant, Name, Operand}
 import com.github.repaj.kompilator.vm.{AsmLoad, AsmStore, Register}
 
 import scala.collection.mutable
@@ -40,6 +41,23 @@ import scala.collection.mutable
   * @author Konrad Kleczkowski
   */
 trait MemoryManaging extends AsmOutput {
+  /**
+    * Returns the liveness analysis for a block.
+    */
+  def liveness(bb: BasicBlock): DataFlowAnalysisResult[Operand]
+
+  /**
+    * Returns the dominators of `bb`.
+    *
+    * @param bb a basic block
+    * @return a dominator set of the `bb`
+    */
+  def dom(bb: BasicBlock): Set[BasicBlock]
+
+  /**
+    * Returns the current block being emitted.
+    */
+  def currentBlock: BasicBlock
 
   /**
     * Loads an operand so that checks if
@@ -224,7 +242,7 @@ trait MemoryManaging extends AsmOutput {
     val available = Set(Register.values: _*) - Register.A
     for (r <- available) {
       val variablesToSpill = for {
-        (variable, locSet) <- descriptors if locSet contains RegisterLocation(r)
+        (variable, locSet) <- descriptors if (locSet contains RegisterLocation(r)) && (liveness(currentBlock).out contains variable)
       } yield variable
       variablesToSpill.foreach { variable =>
         val address = getAddress(variable)
@@ -332,4 +350,5 @@ trait MemoryManaging extends AsmOutput {
     */
   private val selectedSet = new mutable.HashSet[Register]
 
+  private val endSpilled = new mutable.HashSet[Register]
 }

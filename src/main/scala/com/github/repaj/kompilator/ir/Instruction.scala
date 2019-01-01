@@ -86,7 +86,6 @@ sealed abstract class Instruction extends Product {
 
   /**
     * Returns the operand that is defined by this instruction.
-    * @return the defined operand
     */
   final def defines: Option[Operand] = this match {
     case Move(_, destination) => Some(destination)
@@ -102,6 +101,30 @@ sealed abstract class Instruction extends Product {
     case Jump(_) => None
     case JumpIf(_, _, _) => None
     case Halt => None
+  }
+
+  /**
+    * Returns the operands that are used by this instruction.
+    */
+  final def uses: Seq[Operand] = this match {
+    case Move(source, _) => Seq(source)
+    case Get(_) => Seq.empty
+    case Put(_) => Seq.empty
+    case IndexedLoad(_, offset, _) => Seq(offset)
+    case IndexedStore(source, _, offset) => Seq(source, offset)
+    case Add(left, right, _) => Seq(left, right)
+    case Sub(left, right, _) => Seq(left, right)
+    case Mul(left, right, _) => Seq(left, right)
+    case Div(left, right, _) => Seq(left, right)
+    case Rem(left, right, _) => Seq(left, right)
+    case Jump(_) => Seq.empty
+    case JumpIf(Eq(left, right), _, _) => Seq(left, right)
+    case JumpIf(Ne(left, right), _, _) => Seq(left, right)
+    case JumpIf(Le(left, right), _, _) => Seq(left, right)
+    case JumpIf(Ge(left, right), _, _) => Seq(left, right)
+    case JumpIf(Lt(left, right), _, _) => Seq(left, right)
+    case JumpIf(Gt(left, right), _, _) => Seq(left, right)
+    case Halt => Seq.empty
   }
 }
 

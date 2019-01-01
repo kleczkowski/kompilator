@@ -24,6 +24,7 @@
 
 package com.github.repaj.kompilator.codegen
 
+import com.github.repaj.kompilator.codegen.analysis.{DataFlowAnalysisResult, DominatorAnalysis, LivenessAnalysis}
 import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm.{AsmBuilder, AsmHalt, AsmJump}
 
@@ -36,6 +37,15 @@ class CodeGenerator(val builder: AsmBuilder)
   extends AsmOutput
     with Macros with MemoryManaging {
 
+  def emit(blocks: BasicBlock*): Unit = {
+    livenessAnalysis = LivenessAnalysis(blocks: _*)
+    dominatorAnalysis = DominatorAnalysis(blocks: _*)
+    blocks.foreach { b =>
+      currBlock = b
+      emitBlock(b)
+    }
+  }
+
   /**
     * Emits a basic block into the builder.
     *
@@ -46,8 +56,8 @@ class CodeGenerator(val builder: AsmBuilder)
     basicBlock.list.foreach { instruction =>
       clearSelection()
       instruction match {
-        case instruction: LoadStoreInstruction => emitLoadStore(instruction);
-        case instruction: BinaryInstruction => emitBinary(instruction);
+        case instruction: LoadStoreInstruction => emitLoadStore(instruction)
+        case instruction: BinaryInstruction => emitBinary(instruction)
         case instruction: BranchInstruction => saveVariables(); emitBranch(instruction); resetRegistersState()
       }
     }
@@ -96,4 +106,28 @@ class CodeGenerator(val builder: AsmBuilder)
     case JumpIf(Gt(left, right), ifTrue, ifFalse) => jumpGt(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
     case Halt => builder += AsmHalt
   }
+
+  /**
+    * Returns the liveness analysis for a block.
+    */
+  def liveness(bb: BasicBlock): DataFlowAnalysisResult[Operand] = livenessAnalysis(bb)
+
+  /**
+    * Returns the dominators of `bb`.
+    *
+    * @param bb a basic block
+    * @return a dominator set of the `bb`
+    */
+  def dom(bb: BasicBlock): Set[BasicBlock] = dominatorAnalysis(bb)
+
+  /**
+    * Returns the current block being emitted.
+    */
+  def currentBlock: BasicBlock = currBlock
+
+  private var currBlock: BasicBlock = _
+
+  private var livenessAnalysis: Map[BasicBlock, DataFlowAnalysisResult[Operand]] = _
+
+  private var dominatorAnalysis: Map[BasicBlock, Set[BasicBlock]] = _
 }

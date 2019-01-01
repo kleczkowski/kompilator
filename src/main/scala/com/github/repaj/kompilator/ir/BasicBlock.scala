@@ -25,7 +25,6 @@
 package com.github.repaj.kompilator.ir
 
 import scala.collection.mutable
-import scala.util.hashing.MurmurHash3
 
 /**
   * An implementation of basic block.
@@ -43,10 +42,16 @@ import scala.util.hashing.MurmurHash3
   */
 case class BasicBlock(name: String, list: mutable.Buffer[Instruction] = mutable.Buffer.empty) {
   /**
-    * Returns the string representation of this basic block.
+    * Returns the label of this basic block.
     */
-  override final def toString: String =
-    (s"$name:\n" /: list) { (str, inst) => str + s"\t$inst\n" }
+  override final def toString: String = name
+
+  /**
+    * Renders a basic block to a string.
+    *
+    * @return the basic block rendered to string
+    */
+  final def render(): String = (s"$name:\n" /: list) { (str, inst) => str + s"\t$inst\n" }
 
   /**
     * Appends new instruction to this block and returns this block.
@@ -54,5 +59,16 @@ case class BasicBlock(name: String, list: mutable.Buffer[Instruction] = mutable.
   def append(instruction: Instruction): this.type = {
     list += instruction
     this
+  }
+
+  /**
+    * Returns successors of this basic block.
+    */
+  def successors: Seq[BasicBlock] = {
+    list.last match {
+      case Jump(block) => Seq(block)
+      case JumpIf(_, ifTrue, ifFalse) => Seq(ifTrue, ifFalse)
+      case _ => Seq.empty
+    }
   }
 }
