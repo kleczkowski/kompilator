@@ -118,6 +118,103 @@ trait Macros extends AsmOutput with MemoryManaging {
     builder += AsmStore(valueReg)
   }
 
+  /**
+    * Emits an increment operation on an operand.
+    *
+    * @param operand an operand to increment
+    */
+  protected final def inc(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmInc(operandReg)
+    operandReg
+  }
+
+  /**
+    * Emits an increment operation on an operand.
+    *
+    * @param operand an operand to increment
+    */
+  protected final def dec(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmDec(operandReg)
+    operandReg
+  }
+
+  /**
+    * Emits an instructiont that adds right operand to left operand
+    * with destructing the previous instance of left operand.
+    *
+    * @param left  the left operand
+    * @param right the right operand
+    * @return the result register as register of left operand
+    */
+  protected final def addDestructive(left: Operand, right: Operand): Register = {
+    val leftReg = load(left)
+    val rightReg = load(right)
+    builder += AsmAdd(leftReg, rightReg)
+    leftReg
+  }
+
+  /**
+    * Emits an instructiont that adds right operand to left operand
+    * with destructing the previous instance of left operand.
+    *
+    * @param left  the left operand
+    * @param right the right operand
+    * @return the result register as register of left operand
+    */
+  protected final def subDestructive(left: Operand, right: Operand): Register = {
+    val leftReg = load(left)
+    val rightReg = load(right)
+    builder += AsmSub(leftReg, rightReg)
+    leftReg
+  }
+
+  /**
+    * Emits a simple sequence for JZERO jump as a machine idiom.
+    *
+    * @param operand the operand to test
+    * @param label   the label as destiantion of jump.
+    */
+  protected final def jzero(operand: Operand, label: String): Unit = {
+    val operandReg = load(operand)
+    builder += AsmJzero(operandReg, label)
+  }
+
+  /**
+    * Emits an instruction sequence that computes the remainder
+    * of division by two on an operand.
+    *
+    * @param operand the operand
+    * @return a register with remainder of two
+    */
+  protected final def rem2(operand: Operand): Register = {
+    val operandReg = load(operand)
+    val resultReg = select()
+
+    val isOdd = getLabel("macro.rem2.isOdd")
+    val end = getLabel("macro.rem2.end")
+    builder += AsmSub(resultReg, resultReg)
+    builder += AsmJodd(operandReg, isOdd)
+    builder += AsmJump(end)
+    builder.label(isOdd)
+    builder += AsmInc(resultReg)
+    builder.label(end)
+
+    resultReg
+  }
+
+  /**
+    * Emits an instruction sequence that twices the operand.
+    *
+    * @param operand the operand
+    * @return the register with twiced operand
+    */
+  protected final def twice(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmAdd(operandReg, operandReg)
+    operandReg
+  }
 
   /**
     * Emits an instruction that adds

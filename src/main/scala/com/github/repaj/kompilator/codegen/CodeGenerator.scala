@@ -37,6 +37,11 @@ class CodeGenerator(val builder: AsmBuilder)
   extends AsmOutput
     with Macros with MemoryManaging {
 
+  /**
+    * Emits a sequence of basic blocks.
+    *
+    * @param blocks the sequence of basic blocks
+    */
   def emit(blocks: BasicBlock*): Unit = {
     livenessAnalysis = LivenessAnalysis(blocks: _*)
     dominatorAnalysis = DominatorAnalysis(blocks: _*)
@@ -83,12 +88,26 @@ class CodeGenerator(val builder: AsmBuilder)
     *
     * @param instruction a binary instruction
     */
-  private def emitBinary(instruction: BinaryInstruction): Unit = instruction match {
-    case Add(left, right, result) => seize(add(left, right), result)
-    case Sub(left, right, result) => seize(sub(left, right), result)
-    case Mul(left, right, result) => seize(longMul(left, right), result)
-    case Div(left, right, result) => seize(longDiv(left, right), result)
-    case Rem(left, right, result) => seize(longRem(left, right), result)
+  private def emitBinary(instruction: BinaryInstruction): Unit = {
+    def emitIdiom: PartialFunction[BinaryInstruction, Unit] = {
+      case Add(left, Constant(one), result) if one == 1 => seize(inc(left), result)
+      case Add(Constant(one), right, result) if one == 1 => seize(inc(right), result)
+      case Sub(left, Constant(one), result) if one == 1 => seize(dec(left), result)
+      case Add(left, right, result) if left == result => seize(addDestructive(left, right), result)
+      case Add(left, right, result) if right == result => seize(addDestructive(right, left), result)
+      case Sub(left, right, result) if left == result => seize(subDestructive(left, right), result)
+      case Mul(left, Constant(two), result) if two == 2 => seize(twice(left), result)
+      case Mul(Constant(two), right, result) if two == 2 => seize(twice(right), result)
+      case Rem(left, Constant(two), result) if two == 2 => seize(rem2(left), result)
+    }
+    def plainEmit(instruction: BinaryInstruction): Unit = instruction match {
+      case Add(left, right, result) => seize(add(left, right), result)
+      case Sub(left, right, result) => seize(sub(left, right), result)
+      case Mul(left, right, result) => seize(longMul(left, right), result)
+      case Div(left, right, result) => seize(longDiv(left, right), result)
+      case Rem(left, right, result) => seize(longRem(left, right), result)
+    }
+    emitIdiom.applyOrElse(instruction, plainEmit)
   }
 
   /**
@@ -96,15 +115,26 @@ class CodeGenerator(val builder: AsmBuilder)
     *
     * @param instruction a branch instruction.
     */
-  private def emitBranch(instruction: BranchInstruction): Unit = instruction match {
-    case Jump(block) => builder += AsmJump(block.name)
-    case JumpIf(Eq(left, right), ifTrue, ifFalse) => jumpNe(left, right, ifFalse.name); builder += AsmJump(ifTrue.name)
-    case JumpIf(Ne(left, right), ifTrue, ifFalse) => jumpNe(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
-    case JumpIf(Le(left, right), ifTrue, ifFalse) => jumpLe(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
-    case JumpIf(Ge(left, right), ifTrue, ifFalse) => jumpGe(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
-    case JumpIf(Lt(left, right), ifTrue, ifFalse) => jumpLt(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
-    case JumpIf(Gt(left, right), ifTrue, ifFalse) => jumpGt(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
-    case Halt => builder += AsmHalt
+  private def emitBranch(instruction: BranchInstruction): Unit = {
+    def emitIdiom: PartialFunction[BranchInstruction, Unit] = {
+      case JumpIf(Eq(left, Constant(zero)), ifTrue, ifFalse) if zero == 0 => jzero(left, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case JumpIf(Eq(Constant(zero), right), ifTrue, ifFalse) if zero == 0 => jzero(right, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case JumpIf(Ne(left, Constant(zero)), ifTrue, ifFalse) if zero == 0 => jzero(left, ifFalse.name); builder += AsmJump(ifTrue.name)
+      case JumpIf(Ne(Constant(zero), right), ifTrue, ifFalse) if zero == 0 => jzero(right, ifFalse.name); builder += AsmJump(ifTrue.name)
+      case JumpIf(Gt(left, Constant(zero)), ifTrue, ifFalse) if zero == 0 => jzero(left, ifFalse.name); builder += AsmJump(ifTrue.name)
+      case JumpIf(Lt(Constant(zero), right), ifTrue, ifFalse) if zero == 0 => jzero(right, ifFalse.name); builder += AsmJump(ifTrue.name)
+    }
+    def plainEmit(instruction: BranchInstruction): Unit = instruction match {
+      case Jump(block) => builder += AsmJump(block.name)
+      case JumpIf(Eq(left, right), ifTrue, ifFalse) => jumpNe(left, right, ifFalse.name); builder += AsmJump(ifTrue.name)
+      case JumpIf(Ne(left, right), ifTrue, ifFalse) => jumpNe(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case JumpIf(Le(left, right), ifTrue, ifFalse) => jumpLe(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case JumpIf(Ge(left, right), ifTrue, ifFalse) => jumpGe(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case JumpIf(Lt(left, right), ifTrue, ifFalse) => jumpLt(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case JumpIf(Gt(left, right), ifTrue, ifFalse) => jumpGt(left, right, ifTrue.name); builder += AsmJump(ifFalse.name)
+      case Halt => builder += AsmHalt
+    }
+    emitIdiom.applyOrElse(instruction, plainEmit)
   }
 
   /**
