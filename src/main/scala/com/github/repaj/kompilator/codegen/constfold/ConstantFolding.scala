@@ -55,8 +55,7 @@ object ConstantFolding {
     val newList = roundRobinFold(block.list, reachingDef)
     val blockLast = block.list.last
     block.list.clear()
-    block.list ++= newList.init
-    block.list += blockLast
+    block.list ++= newList
     oldList != block.list
   }
 
@@ -127,6 +126,8 @@ object ConstantFolding {
     def get(op: Operand): Operand = constMap.get(op).map(Constant).getOrElse(op)
     def propagate: PartialFunction[Instruction, Instruction] = {
       case IndexedStore(source, base, offset) => IndexedStore(get(source), get(base), get(offset))
+      case IndexedLoad(base, Constant(offset), destination) if constMap contains ExtArrayRef(base, offset) =>
+        Move(Constant(constMap(ExtArrayRef(base, offset))), destination)
       case Add(left, right, result) => Add(get(left), get(right), result)
       case Sub(left, right, result) => Sub(get(left), get(right), result)
       case Mul(left, right, result) => Mul(get(left), get(right), result)

@@ -49,7 +49,6 @@ class CodeGenerator(val builder: AsmBuilder)
     RemoveDeadCode(blocks: _*)
     if (Main.debug) for (b <- blocks) println(b.render())
     livenessAnalysis = LivenessAnalysis(blocks: _*)
-    dominatorAnalysis = DominatorAnalysis(blocks: _*)
     blocks.foreach { b =>
       currBlock = b
       emitBlock(b)

@@ -26,6 +26,8 @@ package com.github.repaj.kompilator.vm
 
 import java.io.PrintWriter
 
+import com.github.repaj.kompilator.Main
+
 import scala.collection.mutable
 
 /**
@@ -66,9 +68,14 @@ class AsmBuilder(list: mutable.Buffer[AsmInstruction] = mutable.Buffer.empty,
   def render(out: PrintWriter): Unit = {
     val invLabelTable = labelTable.map(_.swap).groupBy(_._1).map({ case (k, v) => (k, v.map(_._2)) })
     for (i <- list.indices) {
-      if (invLabelTable contains i) out.print(s"# ${invLabelTable(i)}:\n")
-      out.print(list(i).render(invLabelTable))
-      if (commentTable contains i) out.print(s"   # ${commentTable(i)}\n") else out.print('\n')
+      if (Main.debug && (invLabelTable contains i)) out.print(s"# ${invLabelTable(i)}:\n")
+      list(i) match {
+        case AsmJump(label) if labelTable.exists(p => p._1 == label && p._2 == i + 1) => ()
+        case AsmJzero(_, label) if labelTable.exists(p => p._1 == label && p._2 == i + 1) => ()
+        case AsmJodd(_, label) if labelTable.exists(p => p._1 == label && p._2 == i + 1) => ()
+        case oth => out.print(oth.render(invLabelTable))
+      }
+      if (Main.debug && (commentTable contains i)) out.print(s"   # ${commentTable(i)}\n") else out.print('\n')
     }
   }
 }
