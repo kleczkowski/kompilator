@@ -24,7 +24,7 @@
 
 package com.github.repaj.kompilator.codegen.constfold
 
-import com.github.repaj.kompilator.SymbolTable
+import com.github.repaj.kompilator.{Main, SymbolTable}
 import com.github.repaj.kompilator.codegen.analysis.{DataFlowAnalysisResult, LivenessAnalysis, ReachingDefinitions}
 import com.github.repaj.kompilator.ir._
 
@@ -87,7 +87,7 @@ object ConstantFolding {
       // Update const map (move statements) or propagate constants and fold if possible.
       val newBuffer = (mutable.Buffer.empty[Instruction] /: blockList) { (buf, inst) =>
         buf += updateConstMap(constMap)
-          .orElse(constProp(constMap).andThen(constFold))
+          .orElse(constProp(constMap).andThen(x => constFold(x, constMap)))
           .applyOrElse(inst, identity[Instruction])
       }
 
@@ -100,9 +100,9 @@ object ConstantFolding {
   }
 
   private def updateConstMap(constMap: mutable.Map[ExtOperand, BigInt]): PartialFunction[Instruction, Instruction] = {
-    case idxLd@IndexedLoad(base, Constant(offset), destination) if constMap contains ExtArrayRef(base, offset) =>
+    case IndexedLoad(base, Constant(offset), destination) if constMap contains ExtArrayRef(base, offset) =>
       constMap(destination) = constMap(ExtArrayRef(base, offset))
-      idxLd
+      Move(Constant(constMap(destination)), destination)
     case idxLd@IndexedLoad(_, _, destination) =>
       constMap -= destination
       idxLd
@@ -115,7 +115,7 @@ object ConstantFolding {
     case mv@Move(Constant(value), destination) =>
       constMap(destination) = value
       mv
-    case mv@Move(source, destination) if constMap contains source =>
+    case Move(source, destination) if constMap contains source =>
       constMap(destination) = constMap(source)
       Move(Constant(constMap(source)), destination)
     case mv@Move(_, destination) =>
@@ -138,36 +138,38 @@ object ConstantFolding {
       case JumpIf(Ge(left, right), ifTrue, ifFalse) => JumpIf(Ge(get(left), get(right)), ifTrue, ifFalse)
       case JumpIf(Lt(left, right), ifTrue, ifFalse) => JumpIf(Lt(get(left), get(right)), ifTrue, ifFalse)
       case JumpIf(Gt(left, right), ifTrue, ifFalse) => JumpIf(Gt(get(left), get(right)), ifTrue, ifFalse)
+      case Put(source) => Put(get(source))
     }
     propagate
   }
 
-  private def constFold(instruction: Instruction): Instruction = {
+  private def constFold(instruction: Instruction, constMap: mutable.Map[ExtOperand, BigInt]): Instruction = {
     def sub(a: BigInt, b: BigInt): BigInt = if (a < b) 0 else a - b
     def div(a: BigInt, b: BigInt): BigInt = if (b == 0) 0 else a / b
     def mod(a: BigInt, b: BigInt): BigInt = if (b == 0) 0 else a % b
     instruction match {
+      case Add(Constant(left), Constant(right), result) => constMap(result) = left + right; Move(Constant(left + right), result)
+      case Sub(Constant(left), Constant(right), result) => constMap(result) = sub(left, right); Move(Constant(sub(left, right)), result)
+      case Mul(Constant(left), Constant(right), result) => constMap(result) = left * right; Move(Constant(left * right), result)
+      case Div(Constant(left), Constant(right), result) => constMap(result) = div(left, right); Move(Constant(div(left, right)), result)
+      case Rem(Constant(left), Constant(right), result) => constMap(result) = mod(left, right); Move(Constant(mod(left, right)), result)
+
       case Add(left, Constant(zero), result) if zero == 0 => Move(left, result)
       case Add(Constant(zero), right, result) if zero == 0 => Move(right, result)
       case Sub(left, Constant(zero), result) if zero == 0 => Move(left, result)
-      case Sub(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
-      case Mul(_, Constant(zero), result) if zero == 0 => Move(Constant(0), result)
-      case Mul(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Sub(Constant(zero), _, result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
+      case Mul(_, Constant(zero), result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
+      case Mul(Constant(zero), _, result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
       case Mul(left, Constant(one), result) if one == 1 => Move(left, result)
       case Mul(Constant(one), right, result) if one == 1 => Move(right, result)
-      case Div(_, Constant(zero), result) if zero == 0 => Move(Constant(0), result)
-      case Div(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Div(_, Constant(zero), result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
+      case Div(Constant(zero), _, result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
       case Div(left, Constant(one), result) if one == 1 => Move(left, result)
       case Div(Constant(one), right, result) if one == 1 => Move(right, result)
-      case Rem(_, Constant(zero), result) if zero == 0 => Move(Constant(0), result)
-      case Rem(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Rem(_, Constant(zero), result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
+      case Rem(Constant(zero), _, result) if zero == 0 => constMap(result) = 0; Move(Constant(0), result)
       case Rem(left, Constant(one), result) if one == 1 => Move(left, result)
 
-      case Add(Constant(left), Constant(right), result) => Move(Constant(left + right), result)
-      case Sub(Constant(left), Constant(right), result) => Move(Constant(sub(left, right)), result)
-      case Mul(Constant(left), Constant(right), result) => Move(Constant(left * right), result)
-      case Div(Constant(left), Constant(right), result) => Move(Constant(div(left, right)), result)
-      case Rem(Constant(left), Constant(right), result) => Move(Constant(mod(left, right)), result)
       case JumpIf(Eq(Constant(left), Constant(right)), ifTrue, _) if left == right => Jump(ifTrue)
       case JumpIf(Eq(Constant(left), Constant(right)), _, ifFalse) if left != right => Jump(ifFalse)
       case JumpIf(Ne(Constant(left), Constant(right)), ifTrue, _) if left != right => Jump(ifTrue)
