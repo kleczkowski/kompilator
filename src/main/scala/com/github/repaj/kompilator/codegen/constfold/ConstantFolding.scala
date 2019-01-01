@@ -147,6 +147,22 @@ object ConstantFolding {
     def div(a: BigInt, b: BigInt): BigInt = if (b == 0) 0 else a / b
     def mod(a: BigInt, b: BigInt): BigInt = if (b == 0) 0 else a % b
     instruction match {
+      case Add(left, Constant(zero), result) if zero == 0 => Move(left, result)
+      case Add(Constant(zero), right, result) if zero == 0 => Move(right, result)
+      case Sub(left, Constant(zero), result) if zero == 0 => Move(left, result)
+      case Sub(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Mul(_, Constant(zero), result) if zero == 0 => Move(Constant(0), result)
+      case Mul(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Mul(left, Constant(one), result) if one == 1 => Move(left, result)
+      case Mul(Constant(one), right, result) if one == 1 => Move(right, result)
+      case Div(_, Constant(zero), result) if zero == 0 => Move(Constant(0), result)
+      case Div(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Div(left, Constant(one), result) if one == 1 => Move(left, result)
+      case Div(Constant(one), right, result) if one == 1 => Move(right, result)
+      case Rem(_, Constant(zero), result) if zero == 0 => Move(Constant(0), result)
+      case Rem(Constant(zero), _, result) if zero == 0 => Move(Constant(0), result)
+      case Rem(left, Constant(one), result) if one == 1 => Move(left, result)
+
       case Add(Constant(left), Constant(right), result) => Move(Constant(left + right), result)
       case Sub(Constant(left), Constant(right), result) => Move(Constant(sub(left, right)), result)
       case Mul(Constant(left), Constant(right), result) => Move(Constant(left * right), result)
