@@ -118,9 +118,9 @@ object ConstantFolding {
     case mv@Move(source, destination) if constMap contains source =>
       constMap(destination) = constMap(source)
       Move(Constant(constMap(source)), destination)
-//    case mv@Move(_, destination) =>
-//      constMap -= destination
-//      mv
+    case mv@Move(_, destination) =>
+      constMap -= destination
+      mv
   }
 
   private def constProp(constMap: mutable.Map[ExtOperand, BigInt]): PartialFunction[Instruction, Instruction] = {
