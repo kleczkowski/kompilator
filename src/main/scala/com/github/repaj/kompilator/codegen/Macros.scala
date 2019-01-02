@@ -124,9 +124,11 @@ trait Macros extends AsmOutput with MemoryManaging {
     * @param operand an operand to increment
     */
   protected final def inc(operand: Operand): Register = {
+    val resultReg = select()
     val operandReg = load(operand)
-    builder += AsmInc(operandReg)
-    operandReg
+    builder += AsmCopy(resultReg, operandReg)
+    builder += AsmInc(resultReg)
+    resultReg
   }
 
   /**
@@ -135,9 +137,11 @@ trait Macros extends AsmOutput with MemoryManaging {
     * @param operand an operand to increment
     */
   protected final def dec(operand: Operand): Register = {
+    val resultReg = select()
     val operandReg = load(operand)
-    builder += AsmDec(operandReg)
-    operandReg
+    builder += AsmCopy(resultReg, operandReg)
+    builder += AsmDec(resultReg)
+    resultReg
   }
 
   /**

@@ -242,7 +242,7 @@ trait MemoryManaging extends AsmOutput {
     val available = Set(Register.values: _*) - Register.A
     for (r <- available) {
       val variablesToSpill = for {
-        (variable, locSet) <- descriptors if (locSet contains RegisterLocation(r)) && (liveness(currentBlock).out contains variable)
+        (variable, locSet) <- descriptors if (locSet contains RegisterLocation(r)) /*&& (liveness(currentBlock).out contains variable)*/
       } yield variable
       variablesToSpill.foreach { variable =>
         val address = getAddress(variable)
