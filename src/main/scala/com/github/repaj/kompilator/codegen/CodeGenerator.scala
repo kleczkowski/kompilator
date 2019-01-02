@@ -26,7 +26,7 @@ package com.github.repaj.kompilator.codegen
 
 import com.github.repaj.kompilator.Main
 import com.github.repaj.kompilator.codegen.analysis.{DataFlowAnalysisResult, DominatorAnalysis, LivenessAnalysis}
-import com.github.repaj.kompilator.codegen.constfold.{ConstantFolding, RemoveDeadCode}
+import com.github.repaj.kompilator.codegen.constfold.{ConstantFolding, EnablingOptimalization, PromoteArrayToVariables, RemoveDeadCode}
 import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm.{AsmBuilder, AsmHalt, AsmJump}
 
@@ -45,8 +45,7 @@ class CodeGenerator(val builder: AsmBuilder)
     * @param blocks the sequence of basic blocks
     */
   def emit(blocks: BasicBlock*): Unit = {
-    ConstantFolding(blocks: _*)
-    RemoveDeadCode(blocks: _*)
+    EnablingOptimalization(blocks: _*)
     if (Main.debug) for (b <- blocks) println(b.render())
     livenessAnalysis = LivenessAnalysis(blocks: _*)
     blocks.foreach { b =>

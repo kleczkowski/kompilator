@@ -40,13 +40,18 @@ import scala.language.implicitConversions
   * @author Konrad Kleczkowski
   */
 object ConstantFolding {
-  def apply(blocks: BasicBlock*): Unit = {
+  def apply(blocks: BasicBlock*): Boolean = {
     var changed = true
+    var everChanged = false
     while (changed) {
       changed = false
       val reachingDefMap = ReachingDefinitions(blocks: _*)
-      for (b <- blocks) changed = changed || applyBlock(b, reachingDefMap(b))
+      for (b <- blocks) {
+        changed = changed || applyBlock(b, reachingDefMap(b))
+        if (changed) everChanged = true
+      }
     }
+    everChanged
   }
 
   private def applyBlock(block: BasicBlock,
@@ -99,24 +104,21 @@ object ConstantFolding {
   }
 
   private def updateConstMap(constMap: mutable.Map[ExtOperand, BigInt]): PartialFunction[Instruction, Instruction] = {
-    case IndexedLoad(base, Constant(offset), destination) if constMap contains ExtArrayRef(base, offset) =>
-      constMap(destination) = constMap(ExtArrayRef(base, offset))
-      Move(Constant(constMap(destination)), destination)
-    case idxLd@IndexedLoad(_, _, destination) =>
-      constMap -= destination
-      idxLd
-    case idxSt@IndexedStore(Constant(source), base, Constant(offset)) =>
-      constMap(ExtArrayRef(base, offset)) = source
-      idxSt
-    case idxSt@IndexedStore(_, base, Constant(offset)) =>
-      constMap -= ExtArrayRef(base, offset)
-      idxSt
-    case mv@Move(Constant(value), destination) =>
-      constMap(destination) = value
-      mv
+    case IndexedLoad(base, offset, destination) if (constMap contains offset) && (constMap contains ExtArrayRef(base, constMap(offset))) =>
+      constMap(destination) = constMap(ExtArrayRef(base, constMap(offset)))
+      Move(Constant(constMap(ExtArrayRef(base, constMap(offset)))), destination)
+    case IndexedStore(source, base, offset) if (constMap contains source) && (constMap contains offset) =>
+      constMap(ExtArrayRef(base, constMap(offset))) = constMap(source)
+      IndexedStore(Constant(constMap(source)), base, Constant(constMap(offset)))
     case Move(source, destination) if constMap contains source =>
       constMap(destination) = constMap(source)
       Move(Constant(constMap(source)), destination)
+    case idxLd@IndexedLoad(_, _, destination) =>
+      constMap -= destination
+      idxLd
+    case idxSt@IndexedStore(_, base, Constant(offset)) =>
+      constMap -= ExtArrayRef(base, offset)
+      idxSt
     case mv@Move(_, destination) =>
       constMap -= destination
       mv
@@ -125,9 +127,12 @@ object ConstantFolding {
   private def constProp(constMap: mutable.Map[ExtOperand, BigInt]): PartialFunction[Instruction, Instruction] = {
     def get(op: Operand): Operand = constMap.get(op).map(Constant).getOrElse(op)
     def propagate: PartialFunction[Instruction, Instruction] = {
-      case IndexedStore(source, base, offset) => IndexedStore(get(source), get(base), get(offset))
+      case IndexedStore(source, base, offset) =>
+        IndexedStore(get(source), get(base), get(offset))
       case IndexedLoad(base, Constant(offset), destination) if constMap contains ExtArrayRef(base, offset) =>
         Move(Constant(constMap(ExtArrayRef(base, offset))), destination)
+      case IndexedLoad(base, offset, destination) if (constMap contains offset) && (constMap contains ExtArrayRef(base, constMap(offset))) =>
+        Move(Constant(constMap(ExtArrayRef(base, constMap(offset)))), destination)
       case Add(left, right, result) => Add(get(left), get(right), result)
       case Sub(left, right, result) => Sub(get(left), get(right), result)
       case Mul(left, right, result) => Mul(get(left), get(right), result)
