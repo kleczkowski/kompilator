@@ -26,7 +26,7 @@ package com.github.repaj.kompilator.codegen
 
 import com.github.repaj.kompilator.Main
 import com.github.repaj.kompilator.codegen.analysis.{DataFlowAnalysisResult, DominatorAnalysis, LivenessAnalysis}
-import com.github.repaj.kompilator.codegen.constfold.{ConstantFolding, EnablingOptimalization, PromoteArrayToVariables, RemoveDeadCode}
+import com.github.repaj.kompilator.codegen.constfold._
 import com.github.repaj.kompilator.codegen2.RegisterAllocator
 import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm.{AsmBuilder, AsmHalt, AsmJump}
@@ -47,9 +47,9 @@ class CodeGenerator(val builder: AsmBuilder)
     */
   def emit(blocks: BasicBlock*): Unit = {
     EnablingOptimalization(blocks: _*)
-    livenessAnalysis = LivenessAnalysis(blocks: _*)
+    val livenessMap = LivenessAnalysis(blocks: _*)
     blocks.foreach { b =>
-      currBlock = b
+      livenessAnalysis = livenessMap(b)
       emitBlock(b)
     }
   }
@@ -60,9 +60,11 @@ class CodeGenerator(val builder: AsmBuilder)
     * @param basicBlock a basic block to emit
     */
   def emitBlock(basicBlock: BasicBlock): Unit = {
+    val localLivenessMap = InBlockLivenessAnalysis(basicBlock, currentLiveness.out)
     builder.label(basicBlock.name)
     if (Main.debug) println(basicBlock.name + ":")
     basicBlock.list.foreach { instruction =>
+      localLiveness = localLivenessMap(instruction)
       println("\t" + instruction + ":")
       clearSelection()
       instruction match {
@@ -149,15 +151,9 @@ class CodeGenerator(val builder: AsmBuilder)
   /**
     * Returns the liveness analysis for a block.
     */
-  def liveness(bb: BasicBlock): DataFlowAnalysisResult[Operand] = livenessAnalysis(bb)
+  def currentLiveness: DataFlowAnalysisResult[Operand] = livenessAnalysis
 
-  /**
-    * Returns the dominators of `bb`.
-    *
-    * @param bb a basic block
-    * @return a dominator set of the `bb`
-    */
-  def dom(bb: BasicBlock): Set[BasicBlock] = dominatorAnalysis(bb)
+  def currentLocalLiveness: Set[Operand] = localLiveness
 
   /**
     * Returns the current block being emitted.
@@ -166,7 +162,9 @@ class CodeGenerator(val builder: AsmBuilder)
 
   private var currBlock: BasicBlock = _
 
-  private var livenessAnalysis: Map[BasicBlock, DataFlowAnalysisResult[Operand]] = _
+  private var livenessAnalysis: DataFlowAnalysisResult[Operand] = _
+
+  private var localLiveness: Set[Operand] = _
 
   private var dominatorAnalysis: Map[BasicBlock, Set[BasicBlock]] = _
 }

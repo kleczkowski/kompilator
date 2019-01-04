@@ -27,6 +27,7 @@ package com.github.repaj.kompilator.codegen2
 import com.github.repaj.kompilator.Main
 import com.github.repaj.kompilator.SymbolTable.ArrayEntry
 import com.github.repaj.kompilator.codegen.AsmOutput
+import com.github.repaj.kompilator.codegen.analysis.DataFlowAnalysisResult
 import com.github.repaj.kompilator.ir.{Constant, Name, Operand}
 import com.github.repaj.kompilator.vm._
 
@@ -34,6 +35,10 @@ import scala.collection.mutable
 
 trait RegisterAllocator extends AsmOutput {
   protected def emitConstant(register: Register, value: BigInt): Unit
+
+  def currentLiveness: DataFlowAnalysisResult[Operand]
+
+  def currentLocalLiveness: Set[Operand]
 
   def seize(register: Register, operand: Operand): Unit = {
     // Remove the destination register from all locations.
@@ -57,6 +62,15 @@ trait RegisterAllocator extends AsmOutput {
       free.lastOption
     }
 
+    def selectDead: Option[Register] = {
+      val dead = for {
+        (variable, locations) <- locationMap if !currentLocalLiveness(variable)
+        InRegister(register) <- locations if !selected(register)
+      } yield register
+      dead.lastOption.foreach(register => if (Main.debug) println(s"\t\t# [selectDead] selected dead $register (as variable is dead)"))
+      dead.lastOption
+    }
+
     def spill: Register = {
       val candidates = for {
         (variable, locations) <- locationMap
@@ -70,7 +84,7 @@ trait RegisterAllocator extends AsmOutput {
       register
     }
 
-    val candidate = selectFree.getOrElse(spill)
+    val candidate = selectFree.orElse(selectDead).getOrElse(spill)
     selected += candidate
     candidate
   }
@@ -145,9 +159,11 @@ trait RegisterAllocator extends AsmOutput {
   }
 
   def saveVariables(): Unit = {
+    if (Main.debug) println(s"\t\t# [saveVarables] that variables lives in: ${currentLiveness.in}")
+    if (Main.debug) println(s"\t\t# [saveVarables] that variables lives out: ${currentLiveness.out}")
     if (Main.debug) println(s"\t\t# [saveVariables] locations before: $locationMap")
     val candidates = for {
-      (variable, locations) <- locationMap if locations.size == 1 if variable.isInstanceOf[Name]
+      (variable, locations) <- locationMap if locations.size == 1 && (currentLiveness.out contains variable)
       InRegister(register) <- locations
     } yield (variable, register)
     candidates.foreach(p => store(p._1, p._2))

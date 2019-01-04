@@ -44,7 +44,7 @@ object LivenessAnalysis {
         val blockIn = mutable.Set(blockOut.toSeq: _*)
         for (inst <- block.list.reverse) {
           inst.defines.foreach(blockIn -= _)
-          inst.uses.foreach(blockIn += _)
+          inst.uses.filter(p => !p.isInstanceOf[Constant]).foreach(blockIn += _)
         }
         if (blockIn != in(block) || blockOut != out(block)) changed = true
         in(block) = blockIn
