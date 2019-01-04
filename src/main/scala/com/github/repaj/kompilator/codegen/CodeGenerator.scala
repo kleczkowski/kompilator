@@ -27,6 +27,7 @@ package com.github.repaj.kompilator.codegen
 import com.github.repaj.kompilator.Main
 import com.github.repaj.kompilator.codegen.analysis.{DataFlowAnalysisResult, DominatorAnalysis, LivenessAnalysis}
 import com.github.repaj.kompilator.codegen.constfold.{ConstantFolding, EnablingOptimalization, PromoteArrayToVariables, RemoveDeadCode}
+import com.github.repaj.kompilator.codegen2.RegisterAllocator
 import com.github.repaj.kompilator.ir._
 import com.github.repaj.kompilator.vm.{AsmBuilder, AsmHalt, AsmJump}
 
@@ -37,7 +38,7 @@ import com.github.repaj.kompilator.vm.{AsmBuilder, AsmHalt, AsmJump}
   */
 class CodeGenerator(val builder: AsmBuilder)
   extends AsmOutput
-    with Macros with MemoryManaging {
+    with Macros with RegisterAllocator {
 
   /**
     * Emits a sequence of basic blocks.
@@ -46,7 +47,6 @@ class CodeGenerator(val builder: AsmBuilder)
     */
   def emit(blocks: BasicBlock*): Unit = {
     EnablingOptimalization(blocks: _*)
-    if (Main.debug) for (b <- blocks) println(b.render())
     livenessAnalysis = LivenessAnalysis(blocks: _*)
     blocks.foreach { b =>
       currBlock = b
@@ -61,7 +61,9 @@ class CodeGenerator(val builder: AsmBuilder)
     */
   def emitBlock(basicBlock: BasicBlock): Unit = {
     builder.label(basicBlock.name)
+    if (Main.debug) println(basicBlock.name + ":")
     basicBlock.list.foreach { instruction =>
+      println("\t" + instruction + ":")
       clearSelection()
       instruction match {
         case instruction: LoadStoreInstruction => emitLoadStore(instruction)
@@ -82,8 +84,8 @@ class CodeGenerator(val builder: AsmBuilder)
     case Move(source: Name, destination) => seize(copy(source), destination)
     case Move(source: Temp, destination) => seize(copy(source), destination)
     case Move(source: Constant, destination) => seize(load(source), destination)
-    case IndexedLoad(base, offset, destination) => seize(loadArray(base, offset), destination)
-    case IndexedStore(source, base, offset) => storeArray(base, offset, source)
+    case IndexedLoad(base, offset, destination) => seize(load(base, offset), destination)
+    case IndexedStore(source, base, offset) => store(base, offset, source)
   }
 
   /**
@@ -93,15 +95,19 @@ class CodeGenerator(val builder: AsmBuilder)
     */
   private def emitBinary(instruction: BinaryInstruction): Unit = {
     def emitIdiom: PartialFunction[BinaryInstruction, Unit] = {
+      case Add(left, Constant(one), result) if one == 1 && left == result => seize(incDestructive(left), result)
+      case Add(Constant(one), right, result) if one == 1 && right == result=> seize(incDestructive(right), result)
       case Add(left, Constant(one), result) if one == 1 => seize(inc(left), result)
       case Add(Constant(one), right, result) if one == 1 => seize(inc(right), result)
+      case Sub(left, Constant(one), result) if one == 1 && left == result => seize(decDestructive(left), result)
       case Sub(left, Constant(one), result) if one == 1 => seize(dec(left), result)
       case Add(left, right, result) if left == result => seize(addDestructive(left, right), result)
       case Add(left, right, result) if right == result => seize(addDestructive(right, left), result)
       case Sub(left, right, result) if left == result => seize(subDestructive(left, right), result)
-      case Mul(left, Constant(two), result) if two == 2 => seize(twice(left), result)
-      case Mul(Constant(two), right, result) if two == 2 => seize(twice(right), result)
+      case Mul(left, Constant(two), result) if two == 2 && left == result => seize(twiceDestructive(left), result)
+      case Mul(Constant(two), right, result) if two == 2 && right == result => seize(twiceDestructive(right), result)
       case Rem(left, Constant(two), result) if two == 2 => seize(rem2(left), result)
+      case Div(left, Constant(two), result) if two == 2 && left == result => seize(halfDestructive(left), result)
     }
     def plainEmit(instruction: BinaryInstruction): Unit = instruction match {
       case Add(left, right, result) => seize(add(left, right), result)

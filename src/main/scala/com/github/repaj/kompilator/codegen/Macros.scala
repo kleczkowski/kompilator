@@ -24,7 +24,9 @@
 
 package com.github.repaj.kompilator.codegen
 
+import com.github.repaj.kompilator.Main
 import com.github.repaj.kompilator.SymbolTable.ArrayEntry
+import com.github.repaj.kompilator.codegen2.RegisterAllocator
 import com.github.repaj.kompilator.ir.{Constant, Name, Operand}
 import com.github.repaj.kompilator.vm._
 
@@ -35,7 +37,7 @@ import scala.collection.mutable
   *
   * @author Konrad Kleczkowski
   */
-trait Macros extends AsmOutput with MemoryManaging {
+trait Macros extends AsmOutput with RegisterAllocator {
   /**
     * Emits an instruction that reads integer from standard input.
     *
@@ -70,52 +72,27 @@ trait Macros extends AsmOutput with MemoryManaging {
     copyReg
   }
 
-  /**
-    * Computes the effective address for given operands to register A
-    *
-    * @param base   the base address
-    * @param offset the offset
-    */
-  protected final def lea(base: Operand, offset: Operand): Unit = {
-    val Name(entry: ArrayEntry) = base
-    val address = getAddress(base)
 
-    builder.label(s"computing lea $base[$offset]")
-    val offsetReg = load(offset)
-    val relativeBase = address - entry.startIndex
-    val relativeBaseReg = load(Constant(relativeBase.abs))
-    builder += AsmCopy(Register.A, offsetReg)
-    if (relativeBase < 0) {
-      builder += AsmSub(Register.A, relativeBaseReg)
-    } else if (relativeBase > 0) {
-      builder += AsmAdd(Register.A, relativeBaseReg)
-    }
+  /**
+    * Emits an increment operation on an operand.
+    *
+    * @param operand an operand to increment
+    */
+  protected final def incDestructive(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmInc(operandReg)
+    operandReg
   }
 
   /**
-    * Loads a value from an array.
+    * Emits an increment operation on an operand.
     *
-    * @param base   a base address of an array
-    * @param offset an offset
-    * @return a register with loaded value
+    * @param operand an operand to increment
     */
-  protected final def loadArray(base: Operand, offset: Operand): Register = {
-    val resultReg = select()
-    lea(base, offset)
-    builder += AsmLoad(resultReg)
-    resultReg
-  }
-
-  /**
-    * Stores a value to an array.
-    *
-    * @param base   a base address of an array
-    * @param offset an offset
-    */
-  protected final def storeArray(base: Operand, offset: Operand, value: Operand): Unit = {
-    val valueReg = load(value)
-    lea(base, offset)
-    builder += AsmStore(valueReg)
+  protected final def decDestructive(operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmDec(operandReg)
+    operandReg
   }
 
   /**
@@ -214,9 +191,21 @@ trait Macros extends AsmOutput with MemoryManaging {
     * @param operand the operand
     * @return the register with twiced operand
     */
-  protected final def twice(operand: Operand): Register = {
+  protected final def twiceDestructive(operand: Operand): Register = {
     val operandReg = load(operand)
     builder += AsmAdd(operandReg, operandReg)
+    operandReg
+  }
+
+  /**
+    * Emits an instruction sequence that halfs the operand.
+    *
+    * @param operand the operand
+    * @return the register with twiced operand
+    */
+  protected final def halfDestructive (operand: Operand): Register = {
+    val operandReg = load(operand)
+    builder += AsmHalf(operandReg)
     operandReg
   }
 
@@ -463,6 +452,7 @@ trait Macros extends AsmOutput with MemoryManaging {
     * @param value    the value to be emitted to the given register
     */
   protected final def emitConstant(register: Register, value: BigInt): Unit = {
+    if (Main.debug) println(s"\t\t# emiting constant $value")
     def ones(bigInt: BigInt): Int = (0 until bigInt.bitLength).count(bigInt.testBit)
 
     builder += AsmSub(register, register)

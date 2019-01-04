@@ -51,9 +51,9 @@ sealed abstract class AsmInstruction {
     case AsmHalf(dst) => s"HALF $dst"
     case AsmInc(dst) => s"INC $dst"
     case AsmDec(dst) => s"DEC $dst"
-    case AsmJump(label) => s"JUMP ${labelTable.filter(_._2 contains label).keys.head}"
-    case AsmJzero(cmp, label) => s"JZERO $cmp ${labelTable.filter(_._2 contains label).keys.head}"
-    case AsmJodd(cmp, label) => s"JODD $cmp ${labelTable.filter(_._2 contains label).keys.head}"
+    case AsmJump(label) => s"JUMP ${labelTable.filter(_._2 contains label).keys.head} # $label"
+    case AsmJzero(cmp, label) => s"JZERO $cmp ${labelTable.filter(_._2 contains label).keys.head} # $label"
+    case AsmJodd(cmp, label) => s"JODD $cmp ${labelTable.filter(_._2 contains label).keys.head} # $label"
     case AsmHalt => "HALT"
   }
 }

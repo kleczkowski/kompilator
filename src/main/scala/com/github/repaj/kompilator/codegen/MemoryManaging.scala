@@ -39,6 +39,7 @@ import scala.collection.mutable
   * and temporaries in memory and registers.
   *
   * @author Konrad Kleczkowski
+  * @deprecated Use [[com.github.repaj.kompilator.codegen2.RegisterAllocator]]
   */
 trait MemoryManaging extends AsmOutput {
   /**
@@ -118,7 +119,7 @@ trait MemoryManaging extends AsmOutput {
     val register = select()
     emitConstant(Register.A, address)
     builder += AsmLoad(register)
-    share(register, variable)
+    seize(register, variable)
     register
   }
 
@@ -217,7 +218,7 @@ trait MemoryManaging extends AsmOutput {
         builder.comment(s"spilling $variable that seized $victim to $address")
         emitConstant(Register.A, address)
         builder += AsmStore(victim)
-        descriptors.addBinding(variable, MemoryLocation(address))
+        descriptors(variable) = mutable.Set(MemoryLocation(address))
       }
       orphan(victim)
       victim
@@ -242,14 +243,14 @@ trait MemoryManaging extends AsmOutput {
     val available = Set(Register.values: _*) - Register.A
     for (r <- available) {
       val variablesToSpill = for {
-        (variable, locSet) <- descriptors if (locSet contains RegisterLocation(r)) /*&& (liveness(currentBlock).out contains variable)*/
+        (variable, locSet) <- descriptors if (locSet == Set(RegisterLocation(r))) /*&& (liveness(currentBlock).out contains variable)*/
       } yield variable
       variablesToSpill.foreach { variable =>
         val address = getAddress(variable)
         builder.comment(s"spilling $variable that seized $r to $address")
         emitConstant(Register.A, address)
         builder += AsmStore(r)
-        descriptors.addBinding(variable, MemoryLocation(address))
+        descriptors(variable) = mutable.Set(MemoryLocation(address))
       }
     }
   }
