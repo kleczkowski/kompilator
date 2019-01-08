@@ -65,7 +65,7 @@ class CodeGenerator(val builder: AsmBuilder)
     if (Main.debug) println(basicBlock.name + ":")
     basicBlock.list.foreach { instruction =>
       localLiveness = localLivenessMap(instruction)
-      println("\t" + instruction + ":")
+      if (Main.debug) println("\t" + instruction + ":")
       clearSelection()
       instruction match {
         case instruction: LoadStoreInstruction => emitLoadStore(instruction)
